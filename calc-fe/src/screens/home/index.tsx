@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
-import {ChevronDown, ChevronUp, } from 'lucide-react';
+import {ChevronDown, ChevronUp, X } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
 
@@ -25,8 +25,14 @@ interface Result {
     answer: string;
 }
 
+interface ResultCardProps {
+    response: Response;
+    position: { x: number; y: number };
+    onDelete: (response: Response) => void;
+}
+
 // New Result Card Component
-const ResultCard = ({ response, position }: { response: Response; position: { x: number; y: number } }) => {
+const ResultCard = ({ response, position, onDelete }: ResultCardProps) => {
     const [showSteps, setShowSteps] = useState(false);
 
     const formatLatex = (latex: string) => {
@@ -61,9 +67,9 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
 
     return (
         <Draggable defaultPosition={position}>
-            <div className="result-card min-w-[320px] max-w-[500px] rounded-xl">
-                {/* Type Badge */}
-                <div className="absolute top-3 right-3">
+            <div className="result-card min-w-[320px] max-w-[500px] rounded-xl relative group">
+                {/* Type Badge - moved to left side */}
+                <div className="absolute top-3 left-3">
                     <span className={`px-3 py-1.5 rounded-full text-xs font-medium tracking-wide ${
                         response.type === 'arithmetic' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/20' :
                         response.type === 'equation' ? 'bg-green-500/20 text-green-300 border border-green-500/20' :
@@ -75,8 +81,19 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                     </span>
                 </div>
 
+                {/* Close button - kept on right side */}
+                <button 
+                    onClick={() => onDelete(response)}
+                    className="absolute top-3 right-3 p-1 rounded-full 
+                             bg-gray-800/50 hover:bg-red-500/50 
+                             opacity-0 group-hover:opacity-100 
+                             transition-opacity duration-200 ease-in-out"
+                >
+                    <X className="w-4 h-4 text-gray-300 hover:text-white" />
+                </button>
+
                 {/* Main Result */}
-                <div className="p-6 border-b border-gray-700/50">
+                <div className="p-6 border-b border-gray-700/50 mt-10">
                     <div className="latex-content text-2xl mb-2 text-gray-100">
                         {`\\(\\begin{align*}${formatLatex(response.latex)}\\end{align*}\\)`}
                     </div>
@@ -312,6 +329,10 @@ export default function Home() {
         setLatexExpression([]);
     };
 
+    const handleDeleteResponse = (responseToDelete: Response) => {
+        setResponses(prev => prev.filter(response => response !== responseToDelete));
+    };
+
     return (
         <div className="min-h-screen bg-[#121212]">
             <Header 
@@ -339,12 +360,13 @@ export default function Home() {
                 onMouseOut={stopDrawing}
             />
 
-            {/* Results Display */}
+            {/* Results Display with delete handler */}
             {responses.map((response, index) => (
                 <ResultCard
                     key={index}
                     response={response}
                     position={{ x: 20 + (index * 30), y: 100 + (index * 30) }}
+                    onDelete={handleDeleteResponse}
                 />
             ))}
 
