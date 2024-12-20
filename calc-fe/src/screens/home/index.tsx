@@ -3,13 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {SWATCHES} from '@/constants';
-import { Trash2, Calculator, Eraser, Pencil } from 'lucide-react';
+import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 // import {LazyBrush} from 'lazy-brush';
-
-interface GeneratedResult {
-    expression: string;
-    answer: string;
-}
 
 interface Response {
     expr: string;
@@ -20,18 +15,82 @@ interface Response {
     latex: string;
 }
 
+interface Result {
+    expression: string;
+    answer: string;
+}
+
+// New Result Card Component
+const ResultCard = ({ response, position }: { response: Response; position: { x: number; y: number } }) => {
+    const [showSteps, setShowSteps] = useState(false);
+
+    return (
+        <Draggable defaultPosition={position}>
+            <div className="result-card min-w-[320px] max-w-[500px] rounded-xl">
+                {/* Type Badge */}
+                <div className="absolute top-3 right-3">
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-medium tracking-wide ${
+                        response.type === 'arithmetic' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/20' :
+                        response.type === 'equation' ? 'bg-green-500/20 text-green-300 border border-green-500/20' :
+                        response.type === 'function' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20' :
+                        'bg-gray-500/20 text-gray-300 border border-gray-500/20'
+                    }`}>
+                        {response.type}
+                    </span>
+                </div>
+
+                {/* Main Result */}
+                <div className="p-6 border-b border-gray-700/50">
+                    <div className="latex-content text-2xl mb-2 text-gray-100">
+                        {`\\(${response.latex}\\)`}
+                    </div>
+                </div>
+
+                {/* Steps Dropdown */}
+                {response.steps && response.steps.length > 0 && (
+                    <div>
+                        <button
+                            onClick={() => setShowSteps(!showSteps)}
+                            className="flex items-center justify-between w-full p-4 text-gray-300 hover:bg-gray-800/30 transition-colors"
+                        >
+                            <span className="font-medium">Solution Steps</span>
+                            {showSteps ? (
+                                <ChevronUp className="w-4 h-4 text-gray-400" />
+                            ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                            )}
+                        </button>
+                        {showSteps && (
+                            <div className="p-4 space-y-3 bg-gray-800/20">
+                                {response.steps.map((step, index) => (
+                                    <div
+                                        key={index}
+                                        className="text-gray-300 text-sm leading-relaxed step-animation"
+                                    >
+                                        {step}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </Draggable>
+    );
+};
+
 export default function Home() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [color, setColor] = useState('rgb(255, 255, 255)');
     const [reset, setReset] = useState(false);
     const [dictOfVars, setDictOfVars] = useState({});
-    const [result, setResult] = useState<GeneratedResult>();
-    const [latexPosition, setLatexPosition] = useState({ x: 10, y: 200 });
-    const [latexExpression, setLatexExpression] = useState<Array<string>>([]);
+    const [responses, setResponses] = useState<Response[]>([]);
     const [isEraser, setIsEraser] = useState(false);
     const [previousColor, setPreviousColor] = useState(color);
     const [isCalculating, setIsCalculating] = useState(false);
+    const [latexExpression, setLatexExpression] = useState<string[]>([]);
+    const [result, setResult] = useState<Result | undefined>();
 
     useEffect(() => {
         if (latexExpression.length > 0 && window.MathJax) {
@@ -91,7 +150,12 @@ export default function Home() {
 
         script.onload = () => {
             window.MathJax.Hub.Config({
-                tex2jax: {inlineMath: [['$', '$'], ['\\(', '\\)']]},
+                tex2jax: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    processEscapes: true
+                },
+                messageStyle: 'none',
+                showProcessingMessages: false
             });
         };
 
@@ -100,6 +164,14 @@ export default function Home() {
         };
 
     }, []);
+
+    useEffect(() => {
+        if (responses.length > 0 && window.MathJax) {
+            setTimeout(() => {
+                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub]);
+            }, 100);
+        }
+    }, [responses]);
 
     const resetCanvas = () => {
         const canvas = canvasRef.current;
@@ -155,7 +227,7 @@ export default function Home() {
     
         if (canvas) {
             try {
-                setIsCalculating(true);  // Start loading
+                setIsCalculating(true);
                 const response = await axios({
                     method: 'post',
                     url: `${import.meta.env.VITE_API_URL}/calculate`,
@@ -167,47 +239,31 @@ export default function Home() {
 
                 const resp = await response.data;
                 console.log('Response', resp);
-                resp.data.forEach((data: Response) => {
+                
+                // Handle variable assignments and update LaTeX expressions
+                const newLatexExpressions = resp.data.map((data: Response) => {
                     if (data.assign === true) {
-                        // dict_of_vars[resp.result] = resp.answer;
-                        setDictOfVars({
-                            ...dictOfVars,
+                        setDictOfVars(prev => ({
+                            ...prev,
                             [data.expr]: data.result
-                        });
+                        }));
                     }
+                    return data.latex;
                 });
-                const ctx = canvas.getContext('2d');
-                const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
-                let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
 
-                for (let y = 0; y < canvas.height; y++) {
-                    for (let x = 0; x < canvas.width; x++) {
-                        const i = (y * canvas.width + x) * 4;
-                        if (imageData.data[i + 3] > 0) {  // If pixel is not transparent
-                            minX = Math.min(minX, x);
-                            minY = Math.min(minY, y);
-                            maxX = Math.max(maxX, x);
-                            maxY = Math.max(maxY, y);
-                        }
-                    }
+                setLatexExpression(prev => [...prev, ...newLatexExpressions]);
+                setResponses(resp.data);
+
+                // Clear canvas after successful calculation
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
 
-                const centerX = (minX + maxX) / 2;
-                const centerY = (minY + maxY) / 2;
-
-                setLatexPosition({ x: centerX, y: centerY });
-                resp.data.forEach((data: Response) => {
-                    setTimeout(() => {
-                        setResult({
-                            expression: data.expr,
-                            answer: data.result
-                        });
-                    }, 1000);
-                });
             } catch (error) {
                 console.error('Error:', error);
             } finally {
-                setIsCalculating(false);  // Stop loading
+                setIsCalculating(false);
             }
         }
     };
@@ -298,30 +354,28 @@ export default function Home() {
             <canvas
                 ref={canvasRef}
                 id='canvas'
-                className='absolute top-0 left-0 w-full h-full bg-[#121212] cursor-crosshair'
+                className={`absolute top-0 left-0 w-full h-full canvas-area ${
+                    isEraser ? 'eraser-cursor' : 'cursor-crosshair'
+                }`}
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
                 onMouseOut={stopDrawing}
             />
 
-            {/* Floating Results */}
-            {latexExpression && latexExpression.map((latex, index) => (
-                <Draggable
+            {/* Results Display */}
+            {responses.map((response, index) => (
+                <ResultCard
                     key={index}
-                    defaultPosition={latexPosition}
-                    onStop={(e, data) => setLatexPosition({ x: data.x, y: data.y })}
-                >
-                    <div className="absolute p-3 bg-[#2A2A2A] rounded-lg shadow-lg border border-gray-700">
-                        <div className="latex-content text-gray-200">{latex}</div>
-                    </div>
-                </Draggable>
+                    response={response}
+                    position={{ x: 20 + (index * 30), y: 100 + (index * 30) }}
+                />
             ))}
 
-            {/* Loading Overlay */}
+            {/* Loading State */}
             {isCalculating && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-[#1E1E1E] rounded-lg p-6 shadow-xl border border-gray-800">
+                    <div className="loading-card">
                         <div className="flex flex-col items-center gap-4">
                             <div className="loading-animation">
                                 <div className="calculation-circle"></div>
