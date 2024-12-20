@@ -51,7 +51,6 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
             return step.content
                 .replace(/\*/g, ' \\cdot ')         // Proper multiplication symbol with spacing
                 .replace(/≈/g, ' \\approx ')        // Proper approximation symbol
-                .replace(/sqrt/g, '\\sqrt')         // Square root
                 .replace(/\^(\d+)/g, '^{$1}')       // Proper exponents
                 .replace(/([0-9]+)m([23])/g, '$1\\text{ m}^{$2}')  // Proper unit formatting
                 .replace(/([0-9]+)m\b/g, '$1\\text{ m}')           // Units without exponents
