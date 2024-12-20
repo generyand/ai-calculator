@@ -1,10 +1,9 @@
-import { Button } from '@/components/ui/button';
+import { Header } from '@/components/Header';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {SWATCHES} from '@/constants';
-import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp, X, Palette } from 'lucide-react';
-// import {LazyBrush} from 'lazy-brush';
+import {ChevronDown, ChevronUp, } from 'lucide-react';
 
 interface Response {
     expr: string;
@@ -240,27 +239,10 @@ export default function Home() {
                 });
 
                 const resp = await response.data;
-                console.log('Response', resp);
+                console.log('Response:', resp);
                 
-                // Handle variable assignments and update LaTeX expressions
-                const newLatexExpressions = resp.data.map((data: Response) => {
-                    if (data.assign === true) {
-                        setDictOfVars(prev => ({
-                            ...prev,
-                            [data.expr]: data.result
-                        }));
-                    }
-                    return data.latex;
-                });
-
-                setLatexExpression(prev => [...prev, ...newLatexExpressions]);
-                setResponses(resp.data);
-
-                // Clear canvas after successful calculation
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
+                // Update responses without clearing canvas
+                setResponses(prev => [...prev, ...resp.data]);
 
             } catch (error) {
                 console.error('Error:', error);
@@ -286,84 +268,17 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-[#121212]">
-            {/* Main Toolbar */}
-            <div className="fixed top-0 left-0 right-0 p-4 toolbar z-30">
-                <div className='grid grid-cols-3 gap-4 max-w-6xl mx-auto'>
-                    {/* Left Section - Canvas Controls */}
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={() => setReset(true)}
-                            variant="ghost"
-                            className='hover:bg-gray-800'
-                            title="Clear Canvas"
-                        >
-                            <Trash2 className="w-5 h-5 text-gray-400" />
-                            <span className="text-gray-300">Clear Canvas</span>
-                        </Button>
-
-                        <Button
-                            onClick={clearSolutions}
-                            variant="ghost"
-                            className='hover:bg-gray-800'
-                            title="Clear Solutions"
-                        >
-                            <X className="w-5 h-5 text-gray-400" />
-                            <span className="text-gray-300">Clear Solutions</span>
-                        </Button>
-                    </div>
-
-                    {/* Center Section - Drawing Tools */}
-                    <div className="flex justify-center items-center gap-2">
-                        <Button
-                            onClick={toggleEraser}
-                            variant={isEraser ? "secondary" : "ghost"}
-                            className={`hover:bg-gray-800 ${isEraser ? 'bg-gray-700' : ''}`}
-                            title={isEraser ? "Switch to Pen" : "Switch to Eraser"}
-                        >
-                            {isEraser ? (
-                                <Pencil className="w-5 h-5 text-gray-300" />
-                            ) : (
-                                <Eraser className="w-5 h-5 text-gray-300" />
-                            )}
-                        </Button>
-
-                        <Button
-                            onClick={() => setShowColorPicker(!showColorPicker)}
-                            variant="ghost"
-                            className='hover:bg-gray-800 relative'
-                            title="Color Picker"
-                        >
-                            <Palette className="w-5 h-5 text-gray-300" />
-                            <div 
-                                className="w-3 h-3 rounded-full absolute -bottom-0.5 -right-0.5 border border-gray-700"
-                                style={{ backgroundColor: color }}
-                            />
-                        </Button>
-                    </div>
-
-                    {/* Right Section - Actions */}
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            onClick={runRoute}
-                            variant="default"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            disabled={isCalculating}
-                        >
-                            {isCalculating ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    <span>Calculating...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Calculator className="w-5 h-5" />
-                                    <span>Calculate</span>
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <Header 
+                setReset={setReset}
+                clearSolutions={clearSolutions}
+                toggleEraser={toggleEraser}
+                isEraser={isEraser}
+                setShowColorPicker={setShowColorPicker}
+                showColorPicker={showColorPicker}
+                color={color}
+                runRoute={runRoute}
+                isCalculating={isCalculating}
+            />
 
             {/* Floating Color Picker */}
             {showColorPicker && !isEraser && (
