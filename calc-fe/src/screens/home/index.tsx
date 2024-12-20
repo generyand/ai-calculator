@@ -14,7 +14,10 @@ interface GeneratedResult {
 interface Response {
     expr: string;
     result: string;
+    steps: string[];
+    type: 'arithmetic' | 'equation' | 'variable_assignment' | 'function';
     assign: boolean;
+    latex: string;
 }
 
 export default function Home() {
@@ -28,6 +31,7 @@ export default function Home() {
     const [latexExpression, setLatexExpression] = useState<Array<string>>([]);
     const [isEraser, setIsEraser] = useState(false);
     const [previousColor, setPreviousColor] = useState(color);
+    const [isCalculating, setIsCalculating] = useState(false);
 
     useEffect(() => {
         if (latexExpression.length > 0 && window.MathJax) {
@@ -150,54 +154,61 @@ export default function Home() {
         const canvas = canvasRef.current;
     
         if (canvas) {
-            const response = await axios({
-                method: 'post',
-                url: `${import.meta.env.VITE_API_URL}/calculate`,
-                data: {
-                    image: canvas.toDataURL('image/png'),
-                    dict_of_vars: dictOfVars
-                }
-            });
+            try {
+                setIsCalculating(true);  // Start loading
+                const response = await axios({
+                    method: 'post',
+                    url: `${import.meta.env.VITE_API_URL}/calculate`,
+                    data: {
+                        image: canvas.toDataURL('image/png'),
+                        dict_of_vars: dictOfVars
+                    }
+                });
 
-            const resp = await response.data;
-            console.log('Response', resp);
-            resp.data.forEach((data: Response) => {
-                if (data.assign === true) {
-                    // dict_of_vars[resp.result] = resp.answer;
-                    setDictOfVars({
-                        ...dictOfVars,
-                        [data.expr]: data.result
-                    });
-                }
-            });
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
-            let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+                const resp = await response.data;
+                console.log('Response', resp);
+                resp.data.forEach((data: Response) => {
+                    if (data.assign === true) {
+                        // dict_of_vars[resp.result] = resp.answer;
+                        setDictOfVars({
+                            ...dictOfVars,
+                            [data.expr]: data.result
+                        });
+                    }
+                });
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+                let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
 
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    const i = (y * canvas.width + x) * 4;
-                    if (imageData.data[i + 3] > 0) {  // If pixel is not transparent
-                        minX = Math.min(minX, x);
-                        minY = Math.min(minY, y);
-                        maxX = Math.max(maxX, x);
-                        maxY = Math.max(maxY, y);
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        const i = (y * canvas.width + x) * 4;
+                        if (imageData.data[i + 3] > 0) {  // If pixel is not transparent
+                            minX = Math.min(minX, x);
+                            minY = Math.min(minY, y);
+                            maxX = Math.max(maxX, x);
+                            maxY = Math.max(maxY, y);
+                        }
                     }
                 }
+
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+
+                setLatexPosition({ x: centerX, y: centerY });
+                resp.data.forEach((data: Response) => {
+                    setTimeout(() => {
+                        setResult({
+                            expression: data.expr,
+                            answer: data.result
+                        });
+                    }, 1000);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                setIsCalculating(false);  // Stop loading
             }
-
-            const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
-
-            setLatexPosition({ x: centerX, y: centerY });
-            resp.data.forEach((data: Response) => {
-                setTimeout(() => {
-                    setResult({
-                        expression: data.expr,
-                        answer: data.result
-                    });
-                }, 1000);
-            });
         }
     };
 
@@ -265,9 +276,19 @@ export default function Home() {
                             onClick={runRoute}
                             variant="default"
                             className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={isCalculating}
                         >
-                            <Calculator className="w-5 h-5" />
-                            <span>Calculate</span>
+                            {isCalculating ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Calculating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Calculator className="w-5 h-5" />
+                                    <span>Calculate</span>
+                                </>
+                            )}
                         </Button>
                     </div>
                 </div>
@@ -296,6 +317,22 @@ export default function Home() {
                     </div>
                 </Draggable>
             ))}
+
+            {/* Loading Overlay */}
+            {isCalculating && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="bg-[#1E1E1E] rounded-lg p-6 shadow-xl border border-gray-800">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="loading-animation">
+                                <div className="calculation-circle"></div>
+                                <div className="calculation-circle"></div>
+                                <div className="calculation-circle"></div>
+                            </div>
+                            <p className="text-gray-300 font-medium">Calculating...</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
