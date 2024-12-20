@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {SWATCHES} from '@/constants';
-import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp, X, Palette } from 'lucide-react';
 // import {LazyBrush} from 'lazy-brush';
 
 interface Response {
@@ -91,6 +91,7 @@ export default function Home() {
     const [isCalculating, setIsCalculating] = useState(false);
     const [latexExpression, setLatexExpression] = useState<string[]>([]);
     const [result, setResult] = useState<Result | undefined>();
+    const [showColorPicker, setShowColorPicker] = useState(false);
 
     useEffect(() => {
         if (latexExpression.length > 0 && window.MathJax) {
@@ -284,9 +285,10 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-[#121212]">
-            {/* Top Toolbar */}
+            {/* Main Toolbar */}
             <div className="fixed top-0 left-0 right-0 p-4 toolbar z-30">
                 <div className='grid grid-cols-3 gap-4 max-w-6xl mx-auto'>
+                    {/* Left Section - Canvas Controls */}
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={() => setReset(true)}
@@ -307,43 +309,39 @@ export default function Home() {
                             <X className="w-5 h-5 text-gray-400" />
                             <span className="text-gray-300">Clear Solutions</span>
                         </Button>
-
-                        <div className="flex gap-2 ml-4">
-                            <Button
-                                onClick={toggleEraser}
-                                variant={isEraser ? "secondary" : "ghost"}
-                                className={`hover:bg-gray-800 ${isEraser ? 'bg-gray-700' : ''}`}
-                                title={isEraser ? "Switch to Pen" : "Switch to Eraser"}
-                            >
-                                {isEraser ? (
-                                    <Pencil className="w-5 h-5 text-gray-300" />
-                                ) : (
-                                    <Eraser className="w-5 h-5 text-gray-300" />
-                                )}
-                            </Button>
-                        </div>
                     </div>
 
+                    {/* Center Section - Drawing Tools */}
                     <div className="flex justify-center items-center gap-2">
-                        {!isEraser && (
-                            <div className="color-swatch-container p-2 rounded-lg">
-                                <div className="flex gap-2">
-                                    {SWATCHES.map((swatch) => (
-                                        <div
-                                            key={swatch}
-                                            onClick={() => setColor(swatch)}
-                                            className={`w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 ${
-                                                color === swatch ? 'ring-2 ring-blue-500' : ''
-                                            }`}
-                                            style={{ backgroundColor: swatch }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <Button
+                            onClick={toggleEraser}
+                            variant={isEraser ? "secondary" : "ghost"}
+                            className={`hover:bg-gray-800 ${isEraser ? 'bg-gray-700' : ''}`}
+                            title={isEraser ? "Switch to Pen" : "Switch to Eraser"}
+                        >
+                            {isEraser ? (
+                                <Pencil className="w-5 h-5 text-gray-300" />
+                            ) : (
+                                <Eraser className="w-5 h-5 text-gray-300" />
+                            )}
+                        </Button>
+
+                        <Button
+                            onClick={() => setShowColorPicker(!showColorPicker)}
+                            variant="ghost"
+                            className='hover:bg-gray-800 relative'
+                            title="Color Picker"
+                        >
+                            <Palette className="w-5 h-5 text-gray-300" />
+                            <div 
+                                className="w-3 h-3 rounded-full absolute -bottom-0.5 -right-0.5 border border-gray-700"
+                                style={{ backgroundColor: color }}
+                            />
+                        </Button>
                     </div>
 
-                    <div className="flex justify-end">
+                    {/* Right Section - Actions */}
+                    <div className="flex justify-end gap-2">
                         <Button
                             onClick={runRoute}
                             variant="default"
@@ -365,6 +363,27 @@ export default function Home() {
                     </div>
                 </div>
             </div>
+
+            {/* Floating Color Picker */}
+            {showColorPicker && !isEraser && (
+                <div className="fixed left-4 top-20 color-picker-panel z-40 p-4 rounded-lg shadow-xl">
+                    <div className="grid grid-cols-5 gap-2">
+                        {SWATCHES.map((swatch) => (
+                            <button
+                                key={swatch}
+                                onClick={() => {
+                                    setColor(swatch);
+                                    setShowColorPicker(false);
+                                }}
+                                className={`w-8 h-8 rounded-lg transition-transform hover:scale-110 ${
+                                    color === swatch ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900' : ''
+                                }`}
+                                style={{ backgroundColor: swatch }}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Main Canvas */}
             <canvas

@@ -45,7 +45,7 @@ def parse_gemini_response(response_text: str) -> list:
         return []
 
 def analyze_image(img: Image, dict_of_vars: dict):
-    model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     dict_of_vars_str = json.dumps(dict_of_vars, ensure_ascii=False)
     prompt = (
         f"You are a specialized mathematical expression analyzer. Your task is to analyze the handwritten mathematical content in the image and provide precise calculations. "
