@@ -107,6 +107,25 @@
   .canvas-area {
     @apply bg-gradient-to-br from-gray-900 to-black;
   }
+
+  /* Tool button styles */
+  .tool-button {
+    @apply relative flex items-center justify-center w-10 h-10 rounded-lg 
+           transition-all duration-200 ease-in-out;
+  }
+
+  .tool-button.active {
+    @apply bg-gray-700 shadow-inner;
+  }
+
+  .tool-button:hover {
+    @apply bg-gray-800;
+  }
+
+  /* Eraser cursor */
+  .eraser-cursor {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 20H7L3 16c-1.5-1.5-1.5-3.5 0-5l7-7c1.5-1.5 3.5-1.5 5 0l5 5c1.5 1.5 1.5 3.5 0 5l-4 4'/%3E%3C/svg%3E") 0 24, auto;
+  }
 }
 
 /* MathJax specific styles */

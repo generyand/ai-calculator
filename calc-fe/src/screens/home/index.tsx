@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {SWATCHES} from '@/constants';
-import { Trash2, Calculator } from 'lucide-react';
+import { Trash2, Calculator, Eraser, Pencil } from 'lucide-react';
 // import {LazyBrush} from 'lazy-brush';
 
 interface GeneratedResult {
@@ -26,6 +26,8 @@ export default function Home() {
     const [result, setResult] = useState<GeneratedResult>();
     const [latexPosition, setLatexPosition] = useState({ x: 10, y: 200 });
     const [latexExpression, setLatexExpression] = useState<Array<string>>([]);
+    const [isEraser, setIsEraser] = useState(false);
+    const [previousColor, setPreviousColor] = useState(color);
 
     useEffect(() => {
         if (latexExpression.length > 0 && window.MathJax) {
@@ -118,14 +120,23 @@ export default function Home() {
         }
     };
     const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!isDrawing) {
-            return;
-        }
+        if (!isDrawing) return;
+        
         const canvas = canvasRef.current;
         if (canvas) {
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.strokeStyle = color;
+                if (isEraser) {
+                    // Eraser functionality
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.strokeStyle = 'rgba(0,0,0,1)';
+                    ctx.lineWidth = 20; // Bigger width for eraser
+                } else {
+                    // Normal drawing
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                }
                 ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
                 ctx.stroke();
             }
@@ -190,6 +201,15 @@ export default function Home() {
         }
     };
 
+    const toggleEraser = () => {
+        if (!isEraser) {
+            setPreviousColor(color);
+        } else {
+            setColor(previousColor);
+        }
+        setIsEraser(!isEraser);
+    };
+
     return (
         <div className="min-h-screen bg-[#121212]">
             {/* Top Toolbar */}
@@ -204,23 +224,40 @@ export default function Home() {
                             <Trash2 className="w-5 h-5 text-gray-400" />
                             <span className="text-gray-300">Clear</span>
                         </Button>
+
+                        <div className="flex gap-2 ml-4">
+                            <Button
+                                onClick={toggleEraser}
+                                variant={isEraser ? "secondary" : "ghost"}
+                                className={`hover:bg-gray-800 ${isEraser ? 'bg-gray-700' : ''}`}
+                                title={isEraser ? "Switch to Pen" : "Switch to Eraser"}
+                            >
+                                {isEraser ? (
+                                    <Pencil className="w-5 h-5 text-gray-300" />
+                                ) : (
+                                    <Eraser className="w-5 h-5 text-gray-300" />
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex justify-center items-center gap-2">
-                        <div className="color-swatch-container p-2 rounded-lg">
-                            <div className="flex gap-2">
-                                {SWATCHES.map((swatch) => (
-                                    <div
-                                        key={swatch}
-                                        onClick={() => setColor(swatch)}
-                                        className={`w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 ${
-                                            color === swatch ? 'ring-2 ring-blue-500' : ''
-                                        }`}
-                                        style={{ backgroundColor: swatch }}
-                                    />
-                                ))}
+                        {!isEraser && (
+                            <div className="color-swatch-container p-2 rounded-lg">
+                                <div className="flex gap-2">
+                                    {SWATCHES.map((swatch) => (
+                                        <div
+                                            key={swatch}
+                                            onClick={() => setColor(swatch)}
+                                            className={`w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 ${
+                                                color === swatch ? 'ring-2 ring-blue-500' : ''
+                                            }`}
+                                            style={{ backgroundColor: swatch }}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end">
