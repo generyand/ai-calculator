@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {ChevronDown, ChevronUp, } from 'lucide-react';
+import 'katex/dist/katex.min.css';
+import { InlineMath } from 'react-katex';
 
 interface Response {
     expr: string;
@@ -22,20 +24,24 @@ interface Result {
 const ResultCard = ({ response, position }: { response: Response; position: { x: number; y: number } }) => {
     const [showSteps, setShowSteps] = useState(false);
 
-    // Split latex at equals signs and format with left alignment
     const formatLatex = (latex: string) => {
-        // Split at equals sign but keep the equals sign
         const parts = latex.split(/(?<==)|(?==)/g).filter(Boolean);
-        
-        // Join parts with line breaks and left alignment
         return parts.map((part, index) => {
-            if (index === 0) return `&${part}`;  // First part
+            if (index === 0) return `&${part}`;
             if (part === '=') {
-                // First equal sign stays on same line, others get new line
                 return index === 1 ? ` ${part}` : `\\\\ &${part}`;
             }
-            return part;  // Rest of the expression
+            return part;
         }).join(' ');
+    };
+
+    // Format step for KaTeX
+    const formatStep = (step: string) => {
+        return step
+            .replace(/\\\(/g, '')
+            .replace(/\\\)/g, '')
+            .replace(/≈/g, '\\approx')
+            .replace(/\bsqrt\b/g, '\\sqrt');
     };
 
     return (
@@ -82,7 +88,7 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                                         key={index}
                                         className="text-gray-300 text-sm leading-relaxed step-animation"
                                     >
-                                        {step}
+                                        <InlineMath math={formatStep(step)} />
                                     </div>
                                 ))}
                             </div>
