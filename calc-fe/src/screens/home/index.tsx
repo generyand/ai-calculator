@@ -2,7 +2,6 @@ import { Header } from '@/components/Header';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
-import {SWATCHES} from '@/constants';
 import {ChevronDown, ChevronUp, } from 'lucide-react';
 
 interface Response {
@@ -278,33 +277,12 @@ export default function Home() {
                 color={color}
                 runRoute={runRoute}
                 isCalculating={isCalculating}
+                setColor={setColor}
             />
-
-            {/* Floating Color Picker */}
-            {showColorPicker && !isEraser && (
-                <div className="fixed left-4 top-20 color-picker-panel z-40 p-4 rounded-lg shadow-xl">
-                    <div className="grid grid-cols-5 gap-2">
-                        {SWATCHES.map((swatch) => (
-                            <button
-                                key={swatch}
-                                onClick={() => {
-                                    setColor(swatch);
-                                    setShowColorPicker(false);
-                                }}
-                                className={`w-8 h-8 rounded-lg transition-transform hover:scale-110 ${
-                                    color === swatch ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900' : ''
-                                }`}
-                                style={{ backgroundColor: swatch }}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {/* Main Canvas */}
             <canvas
                 ref={canvasRef}
-                id='canvas'
                 className={`absolute top-0 left-0 w-full h-full canvas-area ${
                     isEraser ? 'eraser-cursor' : 'cursor-crosshair'
                 }`}
