@@ -60,11 +60,20 @@ def analyze_image(img: Image, dict_of_vars: dict):
         f"{{\n"
         f"  'expr': 'original expression',\n"
         f"  'result': 'final calculated result',\n"
-        f"  'steps': ['step1', 'step2', ...],\n"
-        f"  'type': 'one of: arithmetic|equation|variable_assignment|function',\n"
+        f"  'steps': [  // Array of step objects\n"
+        f"    {{\n"
+        f"      'type': 'text|math',  // Use 'text' for explanations, 'math' for equations\n"
+        f"      'content': 'step content'\n"
+        f"    }}\n"
+        f"  ],\n"
+        f"  'type': 'arithmetic|equation|variable_assignment|function',\n"
         f"  'assign': boolean,\n"
         f"  'latex': 'LaTeX formatted expression'\n"
         f"}}\n\n"
+        
+        f"STEP FORMATTING EXAMPLES:\n"
+        f"1. Text step: {{'type': 'text', 'content': 'Using the Pythagorean theorem'}}\n"
+        f"2. Math step: {{'type': 'math', 'content': 'a^2 + b^2 = c^2'}}\n"
         
         f"EXPRESSION TYPES AND EXAMPLES:\n"
         f"1. Arithmetic: '2 + 3 * 4'\n"
@@ -96,12 +105,20 @@ def analyze_image(img: Image, dict_of_vars: dict):
         print("Raw response from Gemini:", response.text)
         answers = parse_gemini_response(response.text)
         
-        # Add missing fields if necessary
+        # Add missing fields and ensure proper step formatting
         for answer in answers:
-            if 'assign' not in answer:
-                answer['assign'] = False
             if 'steps' not in answer:
                 answer['steps'] = []
+            elif isinstance(answer['steps'], list) and all(isinstance(step, str) for step in answer['steps']):
+                # Convert old string steps to new format
+                answer['steps'] = [
+                    {'type': 'math' if any(c in step for c in '=+-*/^') else 'text',
+                     'content': step}
+                    for step in answer['steps']
+                ]
+            
+            if 'assign' not in answer:
+                answer['assign'] = False
             if 'type' not in answer:
                 answer['type'] = 'arithmetic'
             if 'latex' not in answer:

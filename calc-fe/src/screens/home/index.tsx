@@ -4,12 +4,17 @@ import axios from 'axios';
 import Draggable from 'react-draggable';
 import {ChevronDown, ChevronUp, } from 'lucide-react';
 import 'katex/dist/katex.min.css';
-import { InlineMath } from 'react-katex';
+import { BlockMath } from 'react-katex';
+
+interface Step {
+    type: 'text' | 'math';
+    content: string;
+}
 
 interface Response {
     expr: string;
     result: string;
-    steps: string[];
+    steps: Step[];
     type: 'arithmetic' | 'equation' | 'variable_assignment' | 'function';
     assign: boolean;
     latex: string;
@@ -36,12 +41,23 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
     };
 
     // Format step for KaTeX
-    const formatStep = (step: string) => {
-        return step
-            .replace(/\\\(/g, '')
-            .replace(/\\\)/g, '')
-            .replace(/≈/g, '\\approx')
-            .replace(/\bsqrt\b/g, '\\sqrt');
+    const formatStep = (step: Step) => {
+        if (step.type === 'text') {
+            // For text content, wrap the entire content in a single \text{} command
+            // This preserves natural spacing between words
+            return `\\text{${step.content}}`;
+        } else {
+            // For mathematical expressions, apply proper LaTeX formatting
+            return step.content
+                .replace(/\*/g, ' \\cdot ')         // Proper multiplication symbol with spacing
+                .replace(/≈/g, ' \\approx ')        // Proper approximation symbol
+                .replace(/sqrt/g, '\\sqrt')         // Square root
+                .replace(/\^(\d+)/g, '^{$1}')       // Proper exponents
+                .replace(/([0-9]+)m([23])/g, '$1\\text{ m}^{$2}')  // Proper unit formatting
+                .replace(/([0-9]+)m\b/g, '$1\\text{ m}')           // Units without exponents
+                .replace(/\s+/g, ' ')               // Normalize spaces
+                .trim();
+        }
     };
 
     return (
@@ -88,7 +104,17 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                                         key={index}
                                         className="text-gray-300 text-sm leading-relaxed step-animation"
                                     >
-                                        <InlineMath math={formatStep(step)} />
+                                        <div className="break-words">
+                                            {step.type === 'text' ? (
+                                                // For text content, use regular div with text wrapping
+                                                <div className="whitespace-normal">
+                                                    {step.content}
+                                                </div>
+                                            ) : (
+                                                // For math content, use BlockMath
+                                                <BlockMath math={formatStep(step)} />
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
