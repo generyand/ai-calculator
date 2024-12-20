@@ -22,6 +22,22 @@ interface Result {
 const ResultCard = ({ response, position }: { response: Response; position: { x: number; y: number } }) => {
     const [showSteps, setShowSteps] = useState(false);
 
+    // Split latex at equals signs and format with left alignment
+    const formatLatex = (latex: string) => {
+        // Split at equals sign but keep the equals sign
+        const parts = latex.split(/(?<==)|(?==)/g).filter(Boolean);
+        
+        // Join parts with line breaks and left alignment
+        return parts.map((part, index) => {
+            if (index === 0) return `&${part}`;  // First part
+            if (part === '=') {
+                // First equal sign stays on same line, others get new line
+                return index === 1 ? ` ${part}` : `\\\\ &${part}`;
+            }
+            return part;  // Rest of the expression
+        }).join(' ');
+    };
+
     return (
         <Draggable defaultPosition={position}>
             <div className="result-card min-w-[320px] max-w-[500px] rounded-xl">
@@ -41,7 +57,7 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                 {/* Main Result */}
                 <div className="p-6 border-b border-gray-700/50">
                     <div className="latex-content text-2xl mb-2 text-gray-100">
-                        {`\\(${response.latex}\\)`}
+                        {`\\(\\begin{align*}${formatLatex(response.latex)}\\end{align*}\\)`}
                     </div>
                 </div>
 
