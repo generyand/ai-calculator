@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import Draggable from 'react-draggable';
 import {SWATCHES} from '@/constants';
-import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Calculator, Eraser, Pencil, ChevronDown, ChevronUp, X } from 'lucide-react';
 // import {LazyBrush} from 'lazy-brush';
 
 interface Response {
@@ -277,6 +277,11 @@ export default function Home() {
         setIsEraser(!isEraser);
     };
 
+    const clearSolutions = () => {
+        setResponses([]);
+        setLatexExpression([]);
+    };
+
     return (
         <div className="min-h-screen bg-[#121212]">
             {/* Top Toolbar */}
@@ -287,9 +292,20 @@ export default function Home() {
                             onClick={() => setReset(true)}
                             variant="ghost"
                             className='hover:bg-gray-800'
+                            title="Clear Canvas"
                         >
                             <Trash2 className="w-5 h-5 text-gray-400" />
-                            <span className="text-gray-300">Clear</span>
+                            <span className="text-gray-300">Clear Canvas</span>
+                        </Button>
+
+                        <Button
+                            onClick={clearSolutions}
+                            variant="ghost"
+                            className='hover:bg-gray-800'
+                            title="Clear Solutions"
+                        >
+                            <X className="w-5 h-5 text-gray-400" />
+                            <span className="text-gray-300">Clear Solutions</span>
                         </Button>
 
                         <div className="flex gap-2 ml-4">
