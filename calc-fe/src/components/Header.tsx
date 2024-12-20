@@ -46,7 +46,7 @@ export function Header({
             <div className='grid grid-cols-3 gap-4 max-w-6xl mx-auto'>
                 {/* Left Section - Logo/Brand */}
                 <div className="flex items-center">
-                    <span className="text-xl font-semibold text-gray-100">AI Calculator</span>
+                    <span className="text-xl font-semibold text-gray-100">SayonAI</span>
                 </div>
 
                 {/* Center Section - Drawing Tools */}
