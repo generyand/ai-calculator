@@ -33,6 +33,7 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                         response.type === 'arithmetic' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/20' :
                         response.type === 'equation' ? 'bg-green-500/20 text-green-300 border border-green-500/20' :
                         response.type === 'function' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20' :
+                        response.type === 'variable_assignment' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/20' :
                         'bg-gray-500/20 text-gray-300 border border-gray-500/20'
                     }`}>
                         {response.type}
@@ -46,8 +47,8 @@ const ResultCard = ({ response, position }: { response: Response; position: { x:
                     </div>
                 </div>
 
-                {/* Steps Dropdown */}
-                {response.steps && response.steps.length > 0 && (
+                {/* Steps Dropdown - Only show for non-variable assignments */}
+                {response.type !== 'variable_assignment' && response.steps && response.steps.length > 0 && (
                     <div>
                         <button
                             onClick={() => setShowSteps(!showSteps)}
