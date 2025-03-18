@@ -288,6 +288,8 @@ export default function Home() {
 
     const runRoute = async () => {
         const canvas = canvasRef.current;
+
+        console.log(import.meta.env.VITE_API_URL);
     
         if (canvas) {
             try {
