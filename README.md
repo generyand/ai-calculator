@@ -22,6 +22,7 @@ An intelligent calculator application that can process and solve mathematical ex
 - FastAPI (Python)
 - Image processing capabilities
 - AI/ML integration for mathematical expression recognition
+- Gemini LLM for advanced text processing
 - CORS support for cross-origin requests
 
 ## Prerequisites
@@ -31,6 +32,7 @@ Before you begin, ensure you have the following installed:
 - Python (v3.8 or higher)
 - pip (Python package manager)
 - Git
+- Google Cloud API key for Gemini LLM
 
 ## Installation
 
@@ -51,6 +53,14 @@ source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
+
+4. Create a `.env` file in the `calc-be` directory with the following content:
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+Replace `your_gemini_api_key_here` with your actual Google Cloud API key for Gemini LLM. This key is required for the Gemini 1.5 Flash model used for mathematical expression analysis.
+
+Note: The application uses the Gemini 1.5 Flash model for processing mathematical expressions. Make sure your API key has access to this model.
 
 ### Frontend Setup
 
