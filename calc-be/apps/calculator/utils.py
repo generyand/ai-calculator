@@ -22,6 +22,26 @@ except Exception as e:
 
 def clean_gemini_response(response_text: str) -> str:
     """Clean the Gemini response by removing markdown code blocks and other artifacts"""
+    logger.debug(f"Original response before cleaning: {response_text[:500]}...")
+    
+    # Check if the response is wrapped in markdown code blocks
+    if response_text.startswith("```") and "```" in response_text[3:]:
+        # Extract content between the first set of triple backticks
+        try:
+            # Find the start of the content (after the first line with ```)
+            start_idx = response_text.find("\n", response_text.find("```")) + 1
+            
+            # Find the end of the content (before the closing ```)
+            end_idx = response_text.rfind("```")
+            
+            # Extract the content between these markers
+            if start_idx > 0 and end_idx > start_idx:
+                response_text = response_text[start_idx:end_idx].strip()
+                logger.debug(f"Extracted content from markdown block: {response_text[:500]}...")
+        except Exception as e:
+            logger.warning(f"Error extracting content from markdown blocks: {e}")
+    
+    # If the above method fails or isn't applicable, use the regex approach as a fallback
     # Remove markdown code block markers with any language specifier
     response_text = re.sub(r'```(?:json|python|)?\s*', '', response_text)
     response_text = re.sub(r'```\s*', '', response_text)
@@ -30,7 +50,7 @@ def clean_gemini_response(response_text: str) -> str:
     response_text = response_text.strip()
     
     # Debug logging to see the cleaned response
-    logger.debug(f"Cleaned response: {response_text}")
+    logger.debug(f"Cleaned response: {response_text[:500]}...")
     
     return response_text
 
@@ -47,23 +67,25 @@ def parse_gemini_response(response_text: str) -> list:
         # Clean the response first
         cleaned_response = clean_gemini_response(response_text)
         
-        # First try with ast.literal_eval (safer)
+        # First try with json.loads (preferred for JSON data)
         try:
-            parsed = ast.literal_eval(cleaned_response)
+            parsed = json.loads(cleaned_response)
+            logger.info("Successfully parsed response with json.loads")
             if not isinstance(parsed, list):
                 parsed = [parsed]
             return [item for item in parsed if validate_response_item(item)]
-        except SyntaxError as se:
-            logger.warning(f"ast.literal_eval failed: {se}, trying json.loads")
+        except json.JSONDecodeError as je:
+            logger.warning(f"json.loads failed: {je}, trying ast.literal_eval")
             
-            # If ast.literal_eval fails, try with json.loads
+            # If json.loads fails, try with ast.literal_eval
             try:
-                parsed = json.loads(cleaned_response)
+                parsed = ast.literal_eval(cleaned_response)
+                logger.info("Successfully parsed response with ast.literal_eval")
                 if not isinstance(parsed, list):
                     parsed = [parsed]
                 return [item for item in parsed if validate_response_item(item)]
-            except json.JSONDecodeError as je:
-                logger.warning(f"json.loads failed: {je}, trying manual parsing")
+            except (SyntaxError, ValueError) as se:
+                logger.warning(f"ast.literal_eval failed: {se}, trying manual parsing")
                 
                 # Last resort: Try to manually convert Python-style code to valid JSON
                 # Replace single quotes with double quotes for JSON
@@ -73,6 +95,7 @@ def parse_gemini_response(response_text: str) -> list:
                 
                 try:
                     parsed = json.loads(json_fixed)
+                    logger.info("Successfully parsed response with manual fixing")
                     if not isinstance(parsed, list):
                         parsed = [parsed]
                     return [item for item in parsed if validate_response_item(item)]
@@ -178,12 +201,28 @@ def analyze_image(img: Image, dict_of_vars: dict):
             f"4. The response should start with [ and end with ], with no other text before or after.\n"
             f"5. ENSURE ALL STRINGS ARE PROPERLY QUOTED FOR Python's ast.literal_eval.\n"
             f"6. Boolean values should be 'true' or 'false' for JSON compatibility.\n"
+            
+            f"DO NOT INCLUDE BACKTICKS (```) OR CODE BLOCK FORMATTING IN YOUR RESPONSE."
         )
 
         # Generate content with error handling
         try:
             logger.info("Sending request to Gemini API...")
-            response = model.generate_content([prompt, img])
+            
+            # Try to use JSON response mode if available in the API version
+            try:
+                generation_config = genai.GenerationConfig(
+                    response_mime_type="application/json"
+                )
+                response = model.generate_content(
+                    [prompt, img],
+                    generation_config=generation_config
+                )
+                logger.info("Using response_mime_type='application/json' for Gemini API")
+            except Exception as e:
+                logger.warning(f"Could not use JSON mode, falling back to standard mode: {e}")
+                response = model.generate_content([prompt, img])
+            
             logger.info("Successfully received response from Gemini")
             
             if not response or not response.text:

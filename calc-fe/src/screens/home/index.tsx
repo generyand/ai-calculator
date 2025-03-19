@@ -34,6 +34,7 @@ interface ResultCardProps {
 // New Result Card Component
 const ResultCard = ({ response, position, onDelete }: ResultCardProps) => {
     const [showSteps, setShowSteps] = useState(false);
+    const nodeRef = useRef(null);
 
     const formatLatex = (latex: string) => {
         const parts = latex.split(/(?<==)|(?==)/g).filter(Boolean);
@@ -66,8 +67,8 @@ const ResultCard = ({ response, position, onDelete }: ResultCardProps) => {
     };
 
     return (
-        <Draggable defaultPosition={position}>
-            <div className="result-card min-w-[320px] max-w-[500px] rounded-xl relative group">
+        <Draggable defaultPosition={position} nodeRef={nodeRef}>
+            <div ref={nodeRef} className="result-card min-w-[320px] max-w-[500px] rounded-xl relative group">
                 {/* Type Badge - moved to left side */}
                 <div className="absolute top-3 left-3">
                     <span className={`px-3 py-1.5 rounded-full text-xs font-medium tracking-wide ${

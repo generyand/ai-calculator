@@ -34,6 +34,16 @@ async def run(data: ImageData):
         try:
             # Get responses from analysis
             responses = analyze_image(image, dict_of_vars=data.dict_of_vars)
+            
+            # Validate responses
+            if not responses or len(responses) == 0:
+                logger.warning("No valid responses returned from analysis")
+                return {
+                    "message": "No mathematical expressions were detected in the image", 
+                    "data": [], 
+                    "status": "warning"
+                }
+            
             data = []
             
             # Process all responses
@@ -48,6 +58,16 @@ async def run(data: ImageData):
                 "data": data, 
                 "status": "success"
             }
+        except ValueError as ve:
+            if "No valid answers found in AI response" in str(ve):
+                logger.warning(f"Parsing issue: {str(ve)}")
+                return {
+                    "message": "The AI model detected mathematics but had trouble parsing the results. Please try again with clearer handwriting or a simpler expression.", 
+                    "data": [], 
+                    "status": "warning"
+                }
+            logger.error(f"Error in image analysis: {str(ve)}")
+            raise HTTPException(status_code=500, detail=str(ve))
         except Exception as e:
             logger.error(f"Error in image analysis: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to analyze image")
