@@ -1,32 +1,22 @@
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from apps.calculator.route import router as calculator_router
-from constants import SERVER_URL, PORT, ENV, GEMINI_API_KEY
 import google.generativeai as genai
 import logging
 import sys
 import os
+from apps.calculator.route import router as calculator_router
+from constants import SERVER_URL, PORT, ENV, GEMINI_API_KEY
 
-# Configure logging before anything else
+# Set up basic logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ],
-    force=True  # Force the configuration to override any existing configuration
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
 )
+logger = logging.getLogger("calculator-api")
 
-# Set up logging
-logger = logging.getLogger(__name__)
-
-# Disable uvicorn's default logging
-uvicorn_logger = logging.getLogger("uvicorn")
-uvicorn_logger.disabled = True
-
-# Define allowed origins
+# CORS Configuration
 ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite development server
     "http://127.0.0.1:5173",  # Alternative localhost
@@ -34,58 +24,11 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",  # Alternative localhost
 ]
 
-async def check_gemini_api():
-    """Verify Gemini API connection and configuration"""
-    try:
-        logger.info("Checking Gemini API configuration...")
-        logger.info(f"Current working directory: {os.getcwd()}")
-        logger.info(f"Environment: {ENV}")
-        
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not set in environment variables")
-            
-        # Configure Gemini API
-        genai.configure(api_key=GEMINI_API_KEY)
-        logger.info("Successfully configured Gemini API")
-        
-        # Try to initialize the model
-        model = genai.GenerativeModel(model_name="gemini-2.0-flash")
-        logger.info("Successfully initialized Gemini model")
-        
-        # Try a simple test generation
-        response = model.generate_content("Test connection")
-        if not response or not response.text:
-            raise ValueError("Empty response from Gemini API")
-            
-        logger.info("Successfully verified Gemini API connection")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to verify Gemini API connection: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Gemini API connection failed: {str(e)}"
-        )
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Verify Gemini API connection
-    logger.info("Starting application...")
-    logger.info("Checking environment variables...")
-    logger.info(f"SERVER_URL: {SERVER_URL}")
-    logger.info(f"PORT: {PORT}")
-    logger.info(f"ENV: {ENV}")
-    await check_gemini_api()
-    logger.info("Application startup completed successfully")
-    yield
-    # Shutdown: Clean up if needed
-    logger.info("Application shutting down")
-
+# Create FastAPI application
 app = FastAPI(
     title="Calculator API",
     description="API for mathematical expression analysis using Gemini AI",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # Configure CORS
@@ -95,46 +38,103 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,
 )
 
+# Utility function to check Gemini API
+def verify_gemini_api():
+    """Verify Gemini API connection and configuration."""
+    logger.info("Verifying Gemini API connection...")
+    
+    if not GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY is not set in environment variables")
+        return False
+    
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+        response = model.generate_content("Test connection")
+        
+        if not response or not response.text:
+            logger.error("Empty response from Gemini API")
+            return False
+            
+        logger.info("Gemini API connection verified successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Gemini API error: {str(e)}")
+        return False
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    """Run when the application starts."""
+    logger.info("=" * 50)
+    logger.info("Starting Calculator API Server")
+    logger.info(f"Environment: {ENV}")
+    logger.info(f"Server URL: http://{SERVER_URL}:{PORT}")
+    logger.info(f"API Documentation: http://{SERVER_URL}:{PORT}/docs")
+    logger.info("=" * 50)
+    
+    # Verify Gemini API
+    if not verify_gemini_api():
+        logger.warning("Starting server despite Gemini API verification failure")
+    else:
+        logger.info("All systems go!")
+
+# Shutdown event
+@app.on_event("shutdown")
+def shutdown_event():
+    """Run when the application is shutting down."""
+    logger.info("Application shutting down")
+
+# Health check endpoint
+@app.get('/health')
+async def health_check():
+    """Health check endpoint"""
+    logger.info("Health check accessed")
+    if verify_gemini_api():
+        return {"status": "healthy", "message": "Server and Gemini API are functioning correctly"}
+    else:
+        return {"status": "unhealthy", "message": "Gemini API connection failed"}
+
+# Root endpoint
 @app.get('/')
 async def root():
+    """Root endpoint"""
     logger.info("Root endpoint accessed")
     return {
-        "message": "Server is running",
-        "status": "healthy",
+        "message": "Calculator API is running",
+        "status": "online",
         "version": "1.0.0"
     }
 
-@app.get('/health')
-async def health_check():
-    """Health check endpoint that verifies Gemini API connection"""
-    logger.info("Health check endpoint accessed")
-    try:
-        await check_gemini_api()
-        return {
-            "status": "healthy",
-            "message": "Server and Gemini API are functioning correctly"
-        }
-    except HTTPException as he:
-        return {
-            "status": "unhealthy",
-            "message": he.detail
-        }
-
+# Include calculator routes
 app.include_router(calculator_router, prefix="/calculate", tags=["calculate"])
 
+# Main function to run the app
+def main():
+    """Main function to start the server."""
+    logger.info("Starting server...")
+    
+    # Print startup banner to ensure it's visible
+    print("\n" + "=" * 50)
+    print(f"CALCULATOR API SERVER v1.0.0")
+    print(f"Environment: {ENV}")
+    print(f"Server URL: http://{SERVER_URL}:{PORT}")
+    print(f"API Documentation: http://{SERVER_URL}:{PORT}/docs")
+    print("=" * 50 + "\n")
+    
+    try:
+        # Start the server
+        uvicorn.run(
+            app,
+            host=SERVER_URL,
+            port=int(PORT),
+            log_level="info"
+        )
+    except Exception as e:
+        logger.error(f"Failed to start server: {str(e)}")
+        sys.exit(1)
+
 if __name__ == "__main__":
-    logger.info(f"Starting server on {SERVER_URL}:{PORT}")
-    logger.info(f"Environment: {ENV}")
-    logger.info(f"Reload mode: {'enabled' if ENV == 'dev' else 'disabled'}")
-    logger.info(f"Allowed origins: {ALLOWED_ORIGINS}")
-    uvicorn.run(
-        "main:app",
-        host=SERVER_URL,
-        port=int(PORT),
-        reload=(ENV == "dev"),
-        log_level="info"
-    )
+    main()
